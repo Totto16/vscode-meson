@@ -18,7 +18,7 @@ function createTestTask(meson: string, t: Test, buildDir: string, isBenchmark: b
   const name = `${project}:${t.name}`;
   const mode = isBenchmark ? "benchmark" : "test";
   const benchmarkSwitch = isBenchmark ? ["--benchmark"] : [];
-  const args = ["test", ...benchmarkSwitch, ...extensionConfiguration(`${mode}Options`), name];
+  const args = ["test", ...benchmarkSwitch, ...extensionConfiguration(`${mode}Options`), `${name}`];
 
   const testTask = new vscode.Task(
     { type: "meson", mode, target: name },
