@@ -8,6 +8,7 @@ import { createHash, BinaryLike } from "crypto";
 import { ExtensionConfiguration, Target, SettingsKey, ModifiableExtension, type Version } from "./types";
 import { getMesonBuildOptions } from "./introspection";
 import { extensionPath, workspaceState } from "./extension";
+import { Readable } from "stream";
 
 export interface ExecResult {
   stdout: string;
@@ -48,6 +49,108 @@ export async function execFeed(
 
     p.stdin?.write(stdin);
     p.stdin?.end();
+  });
+}
+
+export async function execFeed2(
+  command: string,
+  args: string[],
+  options: cp.SpawnOptionsWithoutStdio = { shell: true },
+  stdin: string,
+) {
+  return new Promise<ExecResult>((resolve) => {
+    const p = cp.spawn(command, args, { ...options, stdio: [0, "pipe", "pipe"] });
+
+    const stdoutBuffer: string[] = [];
+    const stderrBuffer: string[] = [];
+
+    p.stdin?.write(stdin);
+    p.stdin?.end();
+
+    p.stdout?.on("data", (d) => {
+      stdoutBuffer.push(d.toString());
+    });
+
+    p.stderr?.on("data", (d) => {
+      stderrBuffer.push(d.toString());
+    });
+
+    p.on("close", (code, signal) => {
+      resolve({ stderr: stderrBuffer.join(""), stdout: stdoutBuffer.join("") });
+    });
+
+    p.on("error", (error) => {
+      resolve({ stderr: stderrBuffer.join(""), stdout: stdoutBuffer.join(""), error });
+    });
+
+    p.on("disconnect", (err: unknown) => {
+      resolve({
+        stderr: stderrBuffer.join(""),
+        stdout: stdoutBuffer.join(""),
+        error: new Error(`Process disconnected: ${err}`),
+      });
+    });
+
+    p.on("exit", (code, signal) => {
+      resolve({
+        stderr: stderrBuffer.join(""),
+        stdout: stdoutBuffer.join(""),
+        error: new Error(`Process exited: ${code}`),
+      });
+    });
+  });
+}
+
+export async function execFeed3(
+  command: string,
+  args: string[],
+  options: cp.SpawnOptionsWithoutStdio = { shell: true },
+  stdin: string,
+) {
+  return new Promise<ExecResult>((resolve) => {
+    const stdinStream = new Readable();
+
+    const p = cp.spawn(command, args, { ...options, stdio: [stdinStream, "pipe", "pipe"] });
+
+    const stdoutBuffer: string[] = [];
+    const stderrBuffer: string[] = [];
+
+    p.on("spawn", () => {
+      stdinStream.push(stdin);
+      stdinStream.destroy();
+    });
+
+    p.stdout?.on("data", (d) => {
+      stdoutBuffer.push(d.toString());
+    });
+
+    p.stderr?.on("data", (d) => {
+      stderrBuffer.push(d.toString());
+    });
+
+    p.on("close", (code, signal) => {
+      resolve({ stderr: stderrBuffer.join(""), stdout: stdoutBuffer.join("") });
+    });
+
+    p.on("error", (error) => {
+      resolve({ stderr: stderrBuffer.join(""), stdout: stdoutBuffer.join(""), error });
+    });
+
+    p.on("disconnect", (err: unknown) => {
+      resolve({
+        stderr: stderrBuffer.join(""),
+        stdout: stdoutBuffer.join(""),
+        error: new Error(`Process disconnected: ${err}`),
+      });
+    });
+
+    p.on("exit", (code, signal) => {
+      resolve({
+        stderr: stderrBuffer.join(""),
+        stdout: stdoutBuffer.join(""),
+        error: new Error(`Process exited: ${code}`),
+      });
+    });
   });
 }
 
