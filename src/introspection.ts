@@ -57,7 +57,7 @@ export async function getMesonBenchmarks(buildDir: string) {
 }
 
 export async function getMesonVersion(): Promise<Version> {
-  const MESON_VERSION_REGEX = /^(\d+)\.(\d+)\.(\d+)/g;
+  const MESON_VERSION_REGEX = /^(\d+)\.(\d+)\.(\d+)/;
 
   const { stdout } = await exec(extensionConfiguration("mesonPath"), ["--version"]);
   const match = stdout.trim().match(MESON_VERSION_REGEX);
