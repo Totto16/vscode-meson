@@ -5,7 +5,15 @@ import * as vscode from "vscode";
 import * as which from "which";
 
 import { createHash, BinaryLike } from "crypto";
-import { ExtensionConfiguration, Target, SettingsKey, ModifiableExtension, type Version } from "./types";
+import {
+  ExtensionConfiguration,
+  Target,
+  SettingsKey,
+  ModifiableExtension,
+  type Version,
+  type ToolCheckResult,
+  type ToolCheckErrorResult,
+} from "./types";
 import { getMesonBuildOptions } from "./introspection";
 import { extensionPath, workspaceState } from "./extension";
 
@@ -227,4 +235,36 @@ export function versionCompare([major1, minor1, patch1]: Version, [major2, minor
   }
 
   return patch1 - patch2;
+}
+
+const versionNames = ["major", "minor", "patch"] as const;
+
+/** This checks if any type is a valid version "object" at runtime
+ *
+ * @param version the version toc heck
+ */
+export function isValidVersion(version: Version | any): true | Error {
+  if (Array.isArray(version)) {
+    return new Error("Version object is not an Array");
+  }
+
+  if (version.length !== 3) {
+    if (Array.isArray(version)) {
+      return new Error(`Version object has ${version.length} entries, but expected 3`);
+    }
+  }
+
+  for (const index in version as Version) {
+    const num = version[index];
+    if (!Number.isInteger(num)) {
+      const name = versionNames[index];
+      return new Error(`${name} version component is not a number: '${num}'`);
+    }
+  }
+
+  return true;
+}
+
+export function checkHasError(result: ToolCheckResult): result is ToolCheckErrorResult {
+  return !!result.error;
 }

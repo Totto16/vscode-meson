@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { ExecResult, exec, execFeed, extensionConfiguration, getOutputChannel } from "../utils";
-import { Tool, type Version } from "../types";
+import { Tool, type ToolCheckResult, type Version } from "../types";
 
 export async function lint(muon: Tool, root: string, document: vscode.TextDocument): Promise<vscode.Diagnostic[]> {
   const { stderr } = await execFeed(
@@ -72,7 +72,7 @@ export async function format(muon: Tool, root: string, document: vscode.TextDocu
   return [new vscode.TextEdit(documentRange, stdout)];
 }
 
-export async function check(): Promise<{ tool?: Tool; error?: string }> {
+export async function check(): Promise<ToolCheckResult> {
   const muon_path = extensionConfiguration("muonPath");
   let stdout: string, stderr: string;
 
@@ -99,6 +99,8 @@ export async function check(): Promise<{ tool?: Tool; error?: string }> {
 
       return Number.parseInt(s);
     }) as Version;
+
+  getOutputChannel().appendLine(`muon version: ${ver}`);
 
   return { tool: { path: muon_path, version: ver } };
 }

@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
-import { extensionConfiguration, getOutputChannel } from "./utils";
-import { ToolCheckFunc, Tool, type FormattingProvider } from "./types";
+import { checkHasError, extensionConfiguration, getOutputChannel, isValidVersion } from "./utils";
+import { ToolCheckFunc, Tool, type FormattingProvider, type ToolCheckResult } from "./types";
 import * as muon from "./tools/muon";
 import * as meson from "./tools/meson";
 
@@ -11,14 +11,29 @@ type FormatterDefinition = {
   check: ToolCheckFunc;
 };
 
+function checkTool(fn: ToolCheckFunc): ToolCheckFunc {
+  return async () => {
+    const result = await fn();
+
+    if (result.tool) {
+      const isValid = isValidVersion(result.tool.version);
+      if (isValid !== true) {
+        return { error: `Invalid version: '${result.tool.version}': ${isValid.message}` };
+      }
+    }
+
+    return result;
+  };
+}
+
 const formatters: Record<FormattingProvider, FormatterDefinition> = {
   muon: {
     format: muon.format,
-    check: muon.check,
+    check: checkTool(muon.check),
   },
   meson: {
     format: meson.format,
-    check: meson.check,
+    check: checkTool(meson.check),
   },
 };
 
@@ -32,16 +47,18 @@ async function reloadFormatters(sourceRoot: string, context: vscode.ExtensionCon
   const name = extensionConfiguration("formatting").provider;
   const props = formatters[name];
 
-  const { tool, error } = await props.check();
-  if (error) {
-    getOutputChannel().appendLine(`Failed to enable formatter ${name}: ${error}`);
+  const checkResult = await props.check();
+  if (checkHasError(checkResult)) {
+    getOutputChannel().appendLine(`Failed to enable formatter ${name}: ${checkResult.error}`);
     getOutputChannel().show(true);
     return disposables;
   }
 
+  getOutputChannel().appendLine(`tool formatter ${name}: ${checkResult.tool.version}`);
+
   const sub = vscode.languages.registerDocumentFormattingEditProvider("meson", {
     async provideDocumentFormattingEdits(document: vscode.TextDocument): Promise<vscode.TextEdit[]> {
-      return await props.format(tool!, sourceRoot, document);
+      return await props.format(checkResult.tool, sourceRoot, document);
     },
   });
 
