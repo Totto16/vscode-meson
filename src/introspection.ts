@@ -1,6 +1,7 @@
 import * as path from "path";
 import { exec, extensionConfiguration, parseJSONFileIfExists, getOutputChannel } from "./utils";
-import { Targets, Dependencies, BuildOptions, Tests, ProjectInfo, Compilers, type Version } from "./types";
+import { Targets, Dependencies, BuildOptions, Tests, ProjectInfo, Compilers } from "./types";
+import { RawVersion, Version } from "./version";
 
 export function getIntrospectionFile(buildDir: string, filename: string) {
   return path.join(buildDir, path.join("meson-info", filename));
@@ -23,7 +24,7 @@ async function introspectMeson<T>(buildDir: string, filename: string, introspect
 export async function getMesonTargets(buildDir: string) {
   const parsed = await introspectMeson<Targets>(buildDir, "intro-targets.json", "--targets");
 
-  if ((await getMesonVersion())[1] < 50) {
+  if ((await getMesonVersion()).compareRaw([0, 50, 0]) < 0) {
     return parsed.map((t) => {
       if (typeof t.filename === "string") t.filename = [t.filename]; // Old versions would directly pass a string with only 1 filename on the target
       return t;
@@ -62,6 +63,6 @@ export async function getMesonVersion(): Promise<Version> {
   const { stdout } = await exec(extensionConfiguration("mesonPath"), ["--version"]);
   const match = stdout.trim().match(MESON_VERSION_REGEX);
   if (match) {
-    return match.slice(1, 3).map((s) => Number.parseInt(s)) as Version;
+    return new Version(match.slice(1, 3).map((s) => Number.parseInt(s)) as RawVersion);
   } else throw new Error("Meson version doesn't match expected output: " + stdout.trim());
 }
