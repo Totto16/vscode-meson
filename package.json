@@ -552,6 +552,12 @@
           "message": 5
         }
       }
+    ],
+    "jsonValidation": [
+      {
+        "url": "./schemas/meson.format.schema.json",
+        "fileMatch": "meson.format"
+      }
     ]
   },
   "scripts": {
